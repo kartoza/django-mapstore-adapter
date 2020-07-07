@@ -212,6 +212,15 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
                 if isinstance(ms2_map_data, string_types):
                     ms2_map_data = json.loads(ms2_map_data)
                 if 'map' in ms2_map_data:
+                    # Get group data
+                    _ms2_map_data_map = ms2_map_data['map']
+                    if 'groups' in _ms2_map_data_map:
+                        data['map']['groups'] = _ms2_map_data_map['groups']
+                    # Check annotations
+                    if 'layers' in _ms2_map_data_map:
+                        for _ms2_layer in _ms2_map_data_map['layers']:
+                            if 'annotation' in _ms2_layer['id']:
+                                data['map']['layers'].append(_ms2_layer)
                     del ms2_map_data['map']
                 data.update(ms2_map_data)
             except Exception:
