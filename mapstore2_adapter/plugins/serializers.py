@@ -10,6 +10,7 @@
 #########################################################################
 
 from __future__ import absolute_import
+import copy
 
 from ..api.models import (MapStoreData,
                           MapStoreAttribute)
@@ -302,6 +303,7 @@ class GeoNodeSerializer(object):
 
         if 'data' in serializer.validated_data:
             _data = serializer.validated_data.pop('data', None)
+            _map_data = copy.deepcopy(_data)
         else:
             raise APIException("Map Configuration (data) is Mandatory!")
 
@@ -312,9 +314,9 @@ class GeoNodeSerializer(object):
 
         self.set_geonode_map(caller, serializer, map_obj, _data, _attributes)
 
-        if _data:
+        if _map_data:
             # Save JSON blob
-            GeoNodeSerializer.update_data(serializer, _data)
+            GeoNodeSerializer.update_data(serializer, _map_data)
 
         if _attributes:
             # Sabe Attributes
