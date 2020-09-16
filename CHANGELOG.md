@@ -1,5 +1,9 @@
 # Change Log
 
+## 2.0.4 [2020-06-10]
+
+<li> 2020-06-1: afabiani - GetFeatureInfo Template suport for media formats.</li> 
+
 ## 2.0.3 [2020-04-20]
 
 <li> 2020-04-17: dependabot-preview[bot] <a href="http://github.com/GeoNode/django-mapstore-adapter/commit/02fb3066116e42692bbf19c3fa494e4898e843cb" target="blank"> Bump urllib3 from 1.25.8 to 1.25.9</a></li> 

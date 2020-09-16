@@ -11,6 +11,7 @@
 
 from __future__ import absolute_import, unicode_literals
 
+from urllib import parse
 from six import string_types
 
 try:
@@ -21,14 +22,15 @@ except ImportError:
 import logging
 import traceback
 
-from ..utils import (GoogleZoom,
-                     get_wfs_endpoint,
-                     get_valid_number,
-                     to_json)
-from ..settings import (MAP_BASELAYERS,
-                        CATALOGUE_SERVICES,
-                        CATALOGUE_SELECTED_SERVICE
-                        )
+from ..utils import (
+    GoogleZoom,
+    get_wfs_endpoint,
+    get_valid_number,
+    to_json)
+from ..settings import (
+    MAP_BASELAYERS,
+    CATALOGUE_SERVICES,
+    CATALOGUE_SELECTED_SERVICE)
 
 from ..converters import BaseMapStore2ConfigConverter
 
@@ -190,17 +192,6 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
             tb = traceback.format_exc()
             logger.debug(tb)
 
-        # Default Catalogue Services Definition
-        try:
-            ms2_catalogue = {}
-            ms2_catalogue['selectedService'] = CATALOGUE_SELECTED_SERVICE
-            ms2_catalogue['services'] = CATALOGUE_SERVICES
-            data['catalogServices'] = ms2_catalogue
-        except Exception:
-            # traceback.print_exc()
-            tb = traceback.format_exc()
-            logger.debug(tb)
-
         # Additional Configurations
         if map_id:
             from mapstore2_adapter import fixup_map
@@ -227,6 +218,17 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
                 # traceback.print_exc()
                 tb = traceback.format_exc()
                 logger.debug(tb)
+
+        # Default Catalogue Services Definition
+        try:
+            ms2_catalogue = {}
+            ms2_catalogue['selectedService'] = CATALOGUE_SELECTED_SERVICE
+            ms2_catalogue['services'] = CATALOGUE_SERVICES
+            data['catalogServices'] = ms2_catalogue
+        except Exception:
+            # traceback.print_exc()
+            tb = traceback.format_exc()
+            logger.debug(tb)
 
         json_str = json.dumps(data, cls=DjangoJSONEncoder, sort_keys=True)
         for (c, d) in unsafe_chars.items():
@@ -286,6 +288,9 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
                     if 'url' in source:
                         overlay['type'] = "wms" if 'ptype' not in source or \
                             source['ptype'] != 'gxp_arcrestsource' else 'arcgis'
+                        _p_url = parse.urlparse(source['url'])
+                        if _p_url.query:
+                            overlay['params'] = dict(parse.parse_qsl(_p_url.query))
                         overlay['url'] = source['url']
                         overlay['visibility'] = layer['visibility'] if 'visibility' in layer else True
                         overlay['singleTile'] = layer['singleTile'] if 'singleTile' in layer else False
@@ -406,20 +411,55 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
                                 overlay['bbox']['crs'] = layer['srs'] if 'srs' in layer else \
                                     viewer_obj['map']['projection']
 
-                        if 'getFeatureInfo' in layer and layer['getFeatureInfo']:
+                        if 'ftInfoTemplate' in layer and layer['ftInfoTemplate']:
+                            featureInfo = {'format': 'TEMPLATE'}
+                            featureInfo['template'] = layer['ftInfoTemplate']
+                            overlay['featureInfo'] = featureInfo
+                        elif 'getFeatureInfo' in layer and layer['getFeatureInfo']:
                             if 'fields' in layer['getFeatureInfo'] and layer['getFeatureInfo']['fields'] and \
                                     'propertyNames' in layer['getFeatureInfo'] and \
                                     layer['getFeatureInfo']['propertyNames']:
                                 fields = layer['getFeatureInfo']['fields']
                                 propertyNames = layer['getFeatureInfo']['propertyNames']
+                                displayTypes = layer['getFeatureInfo']['displayTypes'] if 'displayTypes' in layer['getFeatureInfo'] else dict()
                                 featureInfo = {'format': 'TEMPLATE'}
 
                                 _template = '<div>'
                                 for _field in fields:
+                                    _label = propertyNames[_field] if propertyNames[_field] else _field
                                     _template += '<div class="row">'
-                                    _template += '<div class="col-xs-4" style="font-weight: bold; word-wrap: break-word;">%s</div> \
-                                        <div class="col-xs-8" style="word-wrap: break-word;">${properties.%s}</div>' % \
-                                        (propertyNames[_field] if propertyNames[_field] else _field, _field)
+
+                                    if _field in displayTypes and displayTypes[_field] == 'type_href':
+                                        _template += '<div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">%s:</div> \
+                                            <div class="col-xs-6" style="word-wrap: break-word;"><a href="${properties.%s}" target="_new">${properties.%s}</a></div>' % \
+                                            (_label, _field, _field)
+                                    elif _field in displayTypes and displayTypes[_field] == 'type_image':
+                                        _template += '<div class="col-xs-12" align="center" style="font-weight: bold; word-wrap: break-word;"> \
+                                            <a href="${properties.%s}" target="_new"><img width="100%%" height="auto" src="${properties.%s}" title="%s" alt="%s"/></a></div>' % \
+                                            (_field, _field, _label, _label)
+                                    elif _field in displayTypes and 'type_video' in displayTypes[_field]:
+                                        if 'youtube' in displayTypes[_field]:
+                                            _template += '<div class="col-xs-12" align="center" style="font-weight: bold; word-wrap: break-word;"> \
+                                                <iframe src="${properties.%s}" width="100%%" height="360" frameborder="0" allowfullscreen></iframe></div>' % \
+                                                (_field)
+                                        else:
+                                            _type = "video/%s" % (displayTypes[_field][11:])
+                                            _template += '<div class="col-xs-12" align="center" style="font-weight: bold; word-wrap: break-word;"> \
+                                                <video width="100%%" height="360" controls><source src="${properties.%s}" type="%s">Your browser does not support the video tag.</video></div>' % \
+                                                (_field, _type)
+                                    elif _field in displayTypes and displayTypes[_field] == 'type_audio':
+                                        _template += '<div class="col-xs-12" align="center" style="font-weight: bold; word-wrap: break-word;"> \
+                                            <audio controls><source src="${properties.%s}" type="audio/mpeg">Your browser does not support the audio element.</audio></div>' % \
+                                            (_field)
+                                    elif _field in displayTypes and displayTypes[_field] == 'type_iframe':
+                                        _template += '<div class="col-xs-12" align="center" style="font-weight: bold; word-wrap: break-word;"> \
+                                            <iframe src="/proxy/?url=${properties.%s}" width="100%%" height="360" frameborder="0" allowfullscreen></iframe></div>' % \
+                                            (_field)
+                                    else:
+                                        _template += '<div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">%s:</div> \
+                                            <div class="col-xs-6" style="word-wrap: break-word;">${properties.%s}</div>' % \
+                                            (propertyNames[_field] if propertyNames[_field] else _field, _field)
+
                                     _template += '</div>'
                                 _template += '</div>'
 
@@ -523,4 +563,10 @@ class GeoNodeMapStore2ConfigConverter(BaseMapStore2ConfigConverter):
             input: MapStore2 compliant str(config)
             output: GeoNode JSON Gxp Config
         """
-        return to_json(viewer)
+        # MapStore uses x0,y0,x1,y1 ordering of bbox coords
+        viewer = to_json(viewer)
+        if viewer.get('map', None) and viewer['map'].get('bbox', None):
+            ms2_bbox = viewer['map'].get('bbox')
+            config_bbox = [ms2_bbox[0], ms2_bbox[2], ms2_bbox[1], ms2_bbox[3]]
+            viewer['map']['bbox'] = config_bbox
+        return viewer

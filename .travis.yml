@@ -51,7 +51,7 @@ install:
   - sudo apt-get install -y python3-pil python3-lxml python3-pyproj python3-shapely python3-nose python3-httplib2 python3-httplib2 gettext
   - sudo apt-get install -y python3-dev libxml2 libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libpq-dev libgdal-dev git default-jdk
   # - pip install pygdal==`gdal-config --version`
-  - pip install pip --upgrade
+  - pip install pip==20.1
   - pip install django==2.2.9
   - pip install celery==4.4.0
   - pip install GeoNode --upgrade --no-deps --no-cache-dir --ignore-requires-python

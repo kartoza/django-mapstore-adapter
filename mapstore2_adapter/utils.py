@@ -232,11 +232,9 @@ def get_valid_number(number, default=None, complementar=False):
 
 def to_json(config):
     try:
-        basestring  # noqa
-    except NameError:
-        # Python 3 does not declare basetring anymore
-        basestring = str
-
-    if isinstance(config, basestring):
         return json.loads(config)
-    return config
+    except Exception:
+        try:
+            return json.loads(config.decode())
+        except Exception:
+            return config

@@ -205,6 +205,8 @@ class GeoNodeSerializer(object):
 
                         # Store the Capabilities Document into the Layer Params of GeoNode
                         if _lyr_context:
+                            if 'ftInfoTemplate' in _lyr_context:
+                                _lyr['ftInfoTemplate'] = _lyr_context['ftInfoTemplate']
                             if 'getFeatureInfo' in _lyr_context:
                                 _lyr['getFeatureInfo'] = _lyr_context['getFeatureInfo']
                             if 'capability' in _lyr_context:
@@ -263,8 +265,8 @@ class GeoNodeSerializer(object):
                             projection=_map_obj['projection'],
                             zoom=_map_obj['zoom'],
                             bbox_x0=_map_obj['bbox'][0],
-                            bbox_x1=_map_obj['bbox'][1],
-                            bbox_y0=_map_obj['bbox'][2],
+                            bbox_y0=_map_obj['bbox'][1],
+                            bbox_x1=_map_obj['bbox'][2],
                             bbox_y1=_map_obj['bbox'][3],
                             srid=_map_obj['projection'])
                         map_obj.save()
